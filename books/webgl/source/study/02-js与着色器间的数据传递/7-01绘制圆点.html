@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>绘制圆点</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="webgl">
+  </canvas>
+  <!-- 顶点着色器 -->
+  <script id="vertexShader" type="x-shader/x-vertex">
+    attribute vec4 a_Position;
+    attribute float a_PointSize;
+    void main(){
+      gl_Position = a_Position;
+      gl_PointSize = a_PointSize;
+    }
+  </script>
+  <!-- 片元着色器 -->
+  <script id="fragmentShader" type="x-shader/x-fragment">
+    precision mediump float;
+    uniform vec4 u_FragColor;
+    void main(){
+      float dist = distance(gl_PointCoord,vec2(0.5,0.5));
+      if (dist < 0.5) {
+        gl_FragColor = u_FragColor;
+      } else {
+        discard;
+      }
+    }
+  </script>
+  <script type="module">
+    import { initShaders } from "../jsm/Utils.js";
+
+    const canvas = document.querySelector("#webgl");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const gl = canvas.getContext("webgl");
+
+    // 顶点字符串
+    const VSHADER_SOURCE = document.querySelector("#vertexShader").innerText;
+
+    // 片元字符串
+    const FSHADER_SOURCE = document.querySelector("#fragmentShader").innerText;
+
+    // 初始化着色器
+    initShaders(gl, VSHADER_SOURCE, FSHADER_SOURCE)
+
+    // 获取 attribute 和 uniform 变量存储位置
+    const a_Position = gl.getAttribLocation(gl.program, 'a_Position');
+    const a_PointSize = gl.getAttribLocation(gl.program, "a_PointSize");
+    const u_FragColor = gl.getUniformLocation(gl.program, "u_FragColor");
+    const a_points = [
+      { x: 0, y: 0, size: 10, color: { r: 1, g: 0, b: 0, a: 1 } },
+    ];
+
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    render();
+
+    // 鼠标点击事件
+    canvas.addEventListener("click", ({ clientX, clientY }) => {
+      const { left, top, width, height } = canvas.getBoundingClientRect();
+      const [cssX, cssY] = [clientX - left, clientY - top];
+      const [halfWidth, halfHeight] = [width / 2, height / 2];
+      const [xBaseCenter, yBaseCenter] = [cssX - halfWidth, cssY - halfHeight];
+      const yBaseCenterTop = -yBaseCenter;
+      const [x, y] = [xBaseCenter / halfWidth, yBaseCenterTop / halfHeight];
+
+      const size = Math.random() * 50 + 10;
+      const n = Math.random();
+      const color = { r: n, g: n, b: 1, a: 1 };
+      a_points.push({ x, y, size, color });
+      render();
+    });
+
+    // 渲染方法
+    function render() {
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      a_points.forEach(({ x, y, size, color: { r, g, b, a } }) => {
+        gl.vertexAttrib2f(a_Position, x, y);
+        gl.vertexAttrib1f(a_PointSize, size);
+        const arr = new Float32Array([r, g, b, a]);
+        gl.uniform4fv(u_FragColor, arr);
+        gl.drawArrays(gl.POINTS, 0, 1);
+      });
+    }
+  </script>
+</body>
+
+</html>

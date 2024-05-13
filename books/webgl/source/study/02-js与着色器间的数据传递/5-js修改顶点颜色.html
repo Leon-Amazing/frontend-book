@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>js修改顶点颜色</title>
+</head>
+
+<body>
+  <canvas id="webgl" width="400" height="400">
+  </canvas>
+  <!-- 顶点着色器 -->
+  <script id="vertexShader" type="x-shader/x-vertex">
+    attribute vec4 a_Position;
+    void main(){
+      gl_Position = a_Position;
+      gl_PointSize = 10.0;
+    }
+  </script>
+  <!-- 片元着色器 -->
+  <script id="fragmentShader" type="x-shader/x-fragment">
+    precision mediump float;
+    uniform vec4 u_FragColor;
+    void main(){
+      gl_FragColor = u_FragColor;
+    }
+  </script>
+  <script type="module">
+    import { initShaders } from "../jsm/Utils.js";
+
+    const canvas = document.getElementById('webgl');
+    const gl = canvas.getContext("webgl");
+
+    // 顶点字符串
+    const VSHADER_SOURCE = document.querySelector("#vertexShader").innerText;
+
+    // 片元字符串
+    const FSHADER_SOURCE = document.querySelector("#fragmentShader").innerText;
+
+    // 初始化着色器
+    initShaders(gl, VSHADER_SOURCE, FSHADER_SOURCE)
+
+    // 获取 attribute 变量 a_Position 的存储位置
+    const a_Position = gl.getAttribLocation(gl.program, 'a_Position');
+    
+    //获取 uniform 变量 u_FragColor 的存储位置
+    const u_FragColor = gl.getUniformLocation(gl.program, "u_FragColor");
+
+    // 将顶点位置传递给 attribute 变量
+    gl.vertexAttrib3f(a_Position, 0.0, 0.0, 0.0);
+
+    // 修改uniform 变量
+    gl.uniform4f(u_FragColor, 1, 0, 0, 1);
+
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawArrays(gl.POINTS, 0, 1);
+  </script>
+</body>
+
+</html>

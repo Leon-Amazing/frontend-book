@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>绘制线</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #canvas {
+            background-color: antiquewhite;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <script id="vertexShader" type="x-shader/x-vertex">
+    attribute vec4 a_Position;
+    void main(){
+        gl_Position = a_Position;
+        gl_PointSize = 10.0;
+    }
+  </script>
+    <script id="fragmentShader" type="x-shader/x-fragment">
+    void main(){
+        gl_FragColor = vec4(1.0,0.0,0.0,1.0);
+    }
+  </script>
+    <script type="module">
+        import { initShaders } from "../jsm/Utils.js";
+
+        const canvas = document.querySelector("#canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // 获取着色器文本
+        const vsSource = document.querySelector("#vertexShader").innerText;
+        const fsSource = document.querySelector("#fragmentShader").innerText;
+
+        // 获取WebGL上下文
+        const gl = canvas.getContext("webgl");
+
+        // 初始化着色器
+        initShaders(gl, vsSource, fsSource);
+
+        // 设置顶点位置
+        const n = initVertexBuffers(gl);
+
+        // 设置背景色
+        gl.clearColor(0, 0, 0, 1);
+
+        // 刷底色
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        // 绘制 n 个点
+        gl.drawArrays(gl.LINES, 0, n);
+
+        function initVertexBuffers(gl) {
+            // 顶点数据
+            const vertices = new Float32Array([
+                0.0, 0.5,
+                -0.5, -0.5,
+                0.5, -0.5
+            ]);
+            // 顶点数量
+            const n = 3;
+            // 创建缓冲区对象
+            const vertexBuffer = gl.createBuffer();
+            // 将缓冲区对象绑定到目标
+            gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+            // 向缓冲区对象中写入数据
+            gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW)
+            // 获取 attribute 变量
+            const a_Position = gl.getAttribLocation(gl.program, 'a_Position')
+            // 将缓冲区对象分配给 a_Position 变量
+            gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0)
+            // 连接 a_Position 变量与缓冲区对象
+            gl.enableVertexAttribArray(a_Position)
+            
+            return n;
+        }
+    </script>
+</body>
+
+</html>
