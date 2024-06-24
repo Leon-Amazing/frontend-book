@@ -16,6 +16,10 @@ module.exports = {
         text: "JavaScript高级程序设计第四版",
         link: "/JavaScript/index.md",
       },
+      {
+        text: "Vue.js设计与实现",
+        link: "/Vuejs/index.md",
+      },
     ],
   },
 
