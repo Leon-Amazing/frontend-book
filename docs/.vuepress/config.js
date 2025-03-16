@@ -2,7 +2,7 @@ module.exports = {
   // 站点配置
   base: '/frontend-book/',
   lang: 'zh-CN',
-  title: '前端书籍',
+  title: 'FrontendBooks',
   description: "Leon's library",
   head: [['link', { rel: 'icon', href: 'logo.png' }]],
 
