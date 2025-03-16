@@ -1,4 +1,4 @@
-## 1.什么是 JavaScript
+# JavaScript高级程序设计第四版
 
 JavaScript 是一门用来与网页交互的脚本语言，包含以下三个组成部分。
 

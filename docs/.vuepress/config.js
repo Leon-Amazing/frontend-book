@@ -1,42 +1,46 @@
 module.exports = {
   // 站点配置
-  base: "/frontend-book/",
-  lang: "zh-CN",
-  title: "前端书籍",
+  base: '/frontend-book/',
+  lang: 'zh-CN',
+  title: '前端书籍',
   description: "Leon's library",
-  head: [["link", { rel: "icon", href: "logo.png" }]],
+  head: [['link', { rel: 'icon', href: 'logo.png' }]],
 
   // 主题和它的配置
-  theme: "@vuepress/theme-default",
+  theme: '@vuepress/theme-default',
   themeConfig: {
-    logo: "logo.png",
+    logo: 'logo.png',
     // 导航
     navbar: [
       {
-        text: "JavaScript高级程序设计第四版",
-        link: "/JavaScript/index.md",
+        text: 'JavaScript高级程序设计第四版',
+        link: '/JavaScript/index.md'
       },
       {
-        text: "Vue.js设计与实现",
-        link: "/Vuejs/index.md",
+        text: '数据结构与算法',
+        link: '/DSA/index.md'
       },
-    ],
+      {
+        text: 'Vue.js设计与实现',
+        link: '/Vuejs/index.md'
+      }
+    ]
   },
 
   // plugins
   plugins: [
     [
-      "@vuepress/plugin-search",
+      '@vuepress/plugin-search',
       {
         locales: {
-          "/": {
-            placeholder: "Search",
+          '/': {
+            placeholder: 'Search'
           },
-          "/zh/": {
-            placeholder: "搜索",
-          },
-        },
-      },
-    ],
-  ],
+          '/zh/': {
+            placeholder: '搜索'
+          }
+        }
+      }
+    ]
+  ]
 };
