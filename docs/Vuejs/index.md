@@ -3539,3 +3539,294 @@ let shouldTrack = true;
 #### 5.8.5 迭代器方法
 
 #### 5.8.6 values 与 keys 方法
+
+## 6.原始值的响应式方案
+
+JavaScript 中的 Proxy 无法提供对原始值的代理，因此想要将原始值变成响应式数据，就必须对其做一层包裹，也就是我们接下来要介绍的 ref。
+
+### 6.1 引入 ref 的概念
+
+对于这个问题，我们能够想到的唯一办法是，使用一个非原始值去“包裹”原始值，例如使用一个对象包裹原始值：
+
+```js
+const wrapper = {
+  value: 'vue'
+};
+// 可以使用 Proxy 代理 wrapper，间接实现对原始值的拦截
+const name = reactive(wrapper);
+name.value; // vue
+// 修改值可以触发响应
+name.value = 'vue3';
+```
+
+但这样做会导致两个问题：
+
+- 用户为了创建一个响应式的原始值，不得不顺带创建一个包裹对象；
+- 包裹对象由用户定义，而这意味着不规范。用户可以随意命名，例如 wrapper.value、wrapper.val 都是可以的。
+
+为了解决这两个问题，我们可以封装一个函数，将包裹对象的创建工作都封装到该函数中：
+
+```js
+// 封装一个 ref 函数
+function ref(val) {
+  // 在 ref 函数内部创建包裹对象
+  const wrapper = {
+    value: val
+  };
+  // 将包裹对象变成响应式数据
+  return reactive(wrapper);
+}
+```
+
+如何区分 refVal 到底是原始值的包裹对象，还是一个非原始值的响应式数据，如以下代码所示：
+
+```js
+const refVal1 = ref(1);
+const refVal2 = reactive({ value: 1 });
+```
+
+```js
+function ref(val) {
+  const wrapper = {
+    value: val
+  };
+  // 使用 Object.defineProperty 在 wrapper 对象上定义一个不可枚举的属性 __v_isRef，并且值为 true
+  Object.defineProperty(wrapper, '__v_isRef', {
+    value: true
+  });
+
+  return reactive(wrapper);
+}
+```
+
+### 6.2 响应丢失问题
+
+ref 除了能够用于原始值的响应式方案之外，还能用来解决响应丢失问题。首先，我们来看什么是响应丢失问题。在编写 Vue.js 组件时，我们通常要把数据暴露到模板中使用，例如：
+
+```js
+export default {
+  setup() {
+    // 响应式数据
+    const obj = reactive({ foo: 1, bar: 2 });
+
+    // 将数据暴露到模板中
+    return {
+      ...obj
+    };
+  }
+};
+```
+
+接着，我们就可以在模板中访问从 setup 中暴露出来的数据：
+
+```vue
+<template>
+  <p>{{ foo }} / {{ bar }}</p>
+</template>
+```
+
+然而，这么做会导致响应丢失。其表现是，当我们修改响应式数据的值时，不会触发重新渲染：
+
+```js
+export default {
+  setup() {
+    // 响应式数据
+    const obj = reactive({ foo: 1, bar: 2 });
+
+    // 1s 后修改响应式数据的值，不会触发重新渲染
+    setTimeout(() => {
+      obj.foo = 100;
+    }, 1000);
+
+    return {
+      ...obj
+    };
+  }
+};
+```
+
+为什么会导致响应丢失呢？这是由展开运算符（...）导致的。实际上，下面这段代码：
+
+```js
+return {
+  ...obj
+};
+
+//等价于：
+
+return {
+  foo: 1,
+  bar: 2
+};
+```
+
+可以发现，这其实就是返回了一个普通对象，它不具有任何响应式能力。把一个普通对象暴露到模板中使用，是不会在渲染函数与响应式数据之间建立响应联系的。所以当我们尝试在一个定时器中修改 obj.foo 的值时，不会触发重新渲染。我们可以用另一种方式来描述响应丢失问题：
+
+```js
+// obj 是响应式数据
+const obj = reactive({ foo: 1, bar: 2 });
+
+// 将响应式数据展开到一个新的对象 newObj
+const newObj = {
+  ...obj
+};
+
+effect(() => {
+  // 在副作用函数内通过新的对象 newObj 读取 foo 属性值
+  console.log(newObj.foo);
+});
+
+// 很显然，此时修改 obj.foo 并不会触发响应
+obj.foo = 100;
+```
+
+在副作用函数内，即使通过普通对象 newObj 来访问属性值，也能够建立响应联系？其实是可以的，代码如下：
+
+```js
+// obj 是响应式数据
+const obj = reactive({ foo: 1, bar: 2 });
+
+// newObj 对象下具有与 obj 对象同名的属性，并且每个属性值都是一个对象，
+// 该对象具有一个访问器属性 value，当读取 value 的值时，其实读取的是 obj对象下相应的属性值
+const newObj = {
+  foo: {
+    get value() {
+      return obj.foo;
+    }
+  },
+  bar: {
+    get value() {
+      return obj.bar;
+    }
+  }
+};
+
+effect(() => {
+  // 在副作用函数内通过新的对象 newObj 读取 foo 属性值
+  console.log(newObj.foo.value);
+});
+
+// 这时能够触发响应了
+obj.foo = 100;
+```
+
+```js
+function toRef(obj, key) {
+  const wrapper = {
+    get value() {
+      return obj[key];
+    },
+    // 允许设置值
+    set value(val) {
+      obj[key] = val;
+    }
+  };
+
+  Object.defineProperty(wrapper, '__v_isRef', {
+    value: true
+  });
+
+  return wrapper;
+}
+```
+
+```js
+function toRefs(obj) {
+  const ret = {};
+  // 使用 for...in 循环遍历对象
+  for (const key in obj) {
+    // 逐个调用 toRef 完成转换
+    ret[key] = toRef(obj, key);
+  }
+  return ret;
+}
+```
+
+### 6.3 自动脱 ref
+
+toRefs 函数的确解决了响应丢失问题，但同时也带来了新的问题。由于 toRefs 会把响应式数据的第一层属性值转换为 ref，因此必须通过 value 属性访问值，如以下代码所示：
+
+```js
+const obj = reactive({ foo: 1, bar: 2 });
+obj.foo; // 1
+obj.bar; // 2
+
+const newObj = { ...toRefs(obj) };
+// 必须使用 value 访问值
+newObj.foo.value; // 1
+newObj.bar.value; // 2
+```
+
+即使 newObj.foo 是一个 ref，也无须通过 newObj.foo.value 来访问它的值。要实现此功能，需要使用 Proxy 为 newObj 创建一个代理对象，通过代理来实现最终目标，这时就用到了上文中介绍的 ref 标识，即 \_\_v_isRef 属性，如下面的代码所示：
+
+```js
+function proxyRefs(target) {
+  return new Proxy(target, {
+    get(target, key, receiver) {
+      const value = Reflect.get(target, key, receiver);
+      // 自动脱 ref 实现：如果读取的值是 ref，则返回它的 value 属性值
+      return value.__v_isRef ? value.value : value;
+    }
+  });
+}
+
+// 调用 proxyRefs 函数创建代理
+const newObj = proxyRefs({ ...toRefs(obj) });
+```
+
+实际上，我们在编写 Vue.js 组件时，组件中的 setup 函数所返回的数据会传递给 proxyRefs 函数进行处理：
+
+```js
+const MyComponent = {
+  setup() {
+    const count = ref(0);
+
+    // 返回的这个对象会传递给 proxyRefs
+    return { count };
+  }
+};
+```
+
+这也是为什么我们可以在模板直接访问一个 ref 的值，而无须通过 value 属性来访问：
+
+```js
+<p>{{ count }}</p>
+```
+
+既然读取属性的值有自动脱 ref 的能力，对应地，设置属性的值也应该有自动为 ref 设置值的能力，例如：
+
+```js
+newObj.foo = 100; // 应该生效
+```
+
+实现此功能很简单，只需要添加对应的 set 拦截函数即可：
+
+```js
+function proxyRefs(target) {
+  return new Proxy(target, {
+    get(target, key, receiver) {
+      const value = Reflect.get(target, key, receiver);
+      return value.__v_isRef ? value.value : value;
+    },
+    set(target, key, newValue, receiver) {
+      // 通过 target 读取真实值
+      const value = target[key];
+      // 如果值是 Ref，则设置其对应的 value 属性值
+      if (value.__v_isRef) {
+        value.value = newValue;
+        return true;
+      }
+      return Reflect.set(target, key, newValue, receiver);
+    }
+  });
+}
+```
+
+实际上，自动脱 ref 不仅存在于上述场景。在 Vue.js 中， reactive 函数也有自动脱 ref 的能力，如以下代码所示：
+
+```js
+const count = ref(0);
+const obj = reactive({ count });
+
+obj.count; // 0
+```
